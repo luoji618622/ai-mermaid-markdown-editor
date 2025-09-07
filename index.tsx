@@ -29,28 +29,64 @@ function TestApp() {
         </div>
         
         <button 
-          onClick={() => {
-            // 动态加载完整应用
-            import('./App').then(({ default: App }) => {
-              import('./components/ErrorBoundary').then(({ default: ErrorBoundary }) => {
-                const root = ReactDOM.createRoot(document.getElementById('root')!);
-                root.render(
-                  <React.StrictMode>
-                    <ErrorBoundary>
-                      <App />
-                    </ErrorBoundary>
-                  </React.StrictMode>
-                );
-              });
-            }).catch(error => {
-              console.error('Failed to load full app:', error);
-              alert('Failed to load full app. Check console for details.');
-            });
+          onClick={async () => {
+            const errorContainer = document.getElementById('error-display');
+            if (errorContainer) {
+              errorContainer.innerHTML = '<div class="p-4 bg-yellow-900/30 border border-yellow-500 rounded-lg"><p class="text-yellow-300">正在加载完整应用...</p></div>';
+            }
+            
+            try {
+              console.log('开始加载App模块...');
+              const { default: App } = await import('./App');
+              console.log('App模块加载成功');
+              
+              console.log('开始加载ErrorBoundary模块...');
+              const { default: ErrorBoundary } = await import('./components/ErrorBoundary');
+              console.log('ErrorBoundary模块加载成功');
+              
+              console.log('开始渲染完整应用...');
+              const root = ReactDOM.createRoot(document.getElementById('root')!);
+              root.render(
+                <React.StrictMode>
+                  <ErrorBoundary>
+                    <App />
+                  </ErrorBoundary>
+                </React.StrictMode>
+              );
+              console.log('完整应用渲染成功');
+              
+            } catch (error: any) {
+              console.error('加载完整应用失败:', error);
+              
+              const errorHtml = `
+                <div class="mt-4 p-4 bg-red-900/30 border border-red-500 rounded-lg">
+                  <h3 class="text-lg font-semibold text-red-400 mb-2">❌ 加载失败</h3>
+                  <p class="text-red-300 mb-2"><strong>错误信息:</strong> ${error.message}</p>
+                  <p class="text-red-300 mb-2"><strong>错误类型:</strong> ${error.name}</p>
+                  ${error.stack ? `<details class="mt-2">
+                    <summary class="cursor-pointer text-red-400">查看详细堆栈</summary>
+                    <pre class="text-xs text-red-300 bg-red-900/50 p-2 rounded mt-2 overflow-auto">${error.stack}</pre>
+                  </details>` : ''}
+                  <div class="mt-3">
+                    <button onclick="window.location.reload()" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-white">
+                      重新加载页面
+                    </button>
+                  </div>
+                </div>
+              `;
+              
+              const errorContainer = document.getElementById('error-display');
+              if (errorContainer) {
+                errorContainer.innerHTML = errorHtml;
+              }
+            }
           }}
           className="mt-8 px-6 py-3 bg-cyan-600 hover:bg-cyan-700 rounded-lg font-semibold transition-colors"
         >
           Load Full Application
         </button>
+        
+        <div id="error-display" className="mt-4"></div>
       </div>
     </div>
   );
