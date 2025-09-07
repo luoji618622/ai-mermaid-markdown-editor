@@ -1,0 +1,5 @@
+{
+  "name": "AI-Powered Mermaid Markdown Editor",
+  "description": "An intelligent Markdown editor that not only provides a live preview but also automatically renders Mermaid diagrams. If a diagram has a syntax error, it leverages AI to correct it on the fly, ensuring a seamless diagramming experience.",
+  "requestFramePermissions": []
+}
