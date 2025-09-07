@@ -71,11 +71,91 @@ function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'diagram.svg';
+    a.download = 'mermaid-diagram.svg';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const downloadPng = async () => {
+    if (!selectedSvg) return;
+    
+    try {
+      // 创建一个临时的SVG元素来获取尺寸
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = selectedSvg;
+      const svgElement = tempDiv.querySelector('svg');
+      
+      if (!svgElement) {
+        throw new Error('无法找到SVG元素');
+      }
+
+      // 获取SVG的原始尺寸
+      const svgRect = svgElement.getBoundingClientRect();
+      const width = svgElement.width?.baseVal?.value || svgRect.width || 800;
+      const height = svgElement.height?.baseVal?.value || svgRect.height || 600;
+
+      // 创建canvas
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        throw new Error('无法创建Canvas上下文');
+      }
+
+      // 设置高分辨率
+      const scale = 2; // 2x分辨率提高图片质量
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      
+      // 设置白色背景
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // 缩放上下文以支持高分辨率
+      ctx.scale(scale, scale);
+
+      // 创建图片对象
+      const img = new Image();
+      
+      // 创建SVG数据URL
+      const svgBlob = new Blob([selectedSvg], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
+
+      img.onload = () => {
+        // 绘制图片到canvas
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // 转换为PNG并下载
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'mermaid-diagram.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }
+        }, 'image/png', 1.0);
+        
+        // 清理临时URL
+        URL.revokeObjectURL(svgUrl);
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(svgUrl);
+        throw new Error('图片加载失败');
+      };
+
+      img.src = svgUrl;
+      
+    } catch (error) {
+      console.error('PNG下载失败:', error);
+      alert('PNG下载失败，请重试');
+    }
   };
 
   // 添加缩放功能
@@ -187,12 +267,20 @@ function App() {
                 >
                   Reset
                 </button>
-                <button
-                  onClick={downloadSvg}
-                  className="mx-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-md text-white transition-colors text-sm font-medium"
-                >
-                  Download SVG
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={downloadSvg}
+                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-md text-white transition-colors text-sm font-medium"
+                  >
+                    下载 SVG
+                  </button>
+                  <button
+                    onClick={downloadPng}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md text-white transition-colors text-sm font-medium"
+                  >
+                    下载 PNG
+                  </button>
+                </div>
                 <button 
                   onClick={handleCloseModal}
                   className="px-4 py-2 bg-slate-600 hover:bg-slate-700 rounded-md text-white transition-colors text-sm font-medium"
