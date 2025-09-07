@@ -281,13 +281,29 @@ function App() {
     }
   };
 
-  // 添加缩放功能
+  // 添加缩放功能 - 以中心点缩放
   const handleZoomIn = () => {
-    setZoomLevel(prev => Math.min(prev + 0.2, 5)); // 增加最大缩放到5倍
+    const newZoomLevel = Math.min(zoomLevel + 0.2, 5);
+    const zoomRatio = newZoomLevel / zoomLevel;
+    
+    // 保持当前视图中心不变
+    setPosition({
+      x: position.x * zoomRatio,
+      y: position.y * zoomRatio
+    });
+    setZoomLevel(newZoomLevel);
   };
 
   const handleZoomOut = () => {
-    setZoomLevel(prev => Math.max(prev - 0.2, 0.2)); // 最小缩小到0.2倍
+    const newZoomLevel = Math.max(zoomLevel - 0.2, 0.2);
+    const zoomRatio = newZoomLevel / zoomLevel;
+    
+    // 保持当前视图中心不变
+    setPosition({
+      x: position.x * zoomRatio,
+      y: position.y * zoomRatio
+    });
+    setZoomLevel(newZoomLevel);
   };
 
   const handleResetZoom = () => {
@@ -295,30 +311,72 @@ function App() {
     setPosition({ x: 0, y: 0 });
   };
 
-  // 修改鼠标滚轮缩放功能
+  // 修改鼠标滚轮缩放功能 - 以鼠标位置为中心缩放
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    // 直接使用滚轮进行缩放，无需按住 Ctrl 键
+    
+    const container = e.currentTarget;
+    const rect = container.getBoundingClientRect();
+    
+    // 获取鼠标相对于容器的位置
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    // 获取容器中心
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    // 计算鼠标相对于中心的偏移
+    const offsetX = mouseX - centerX;
+    const offsetY = mouseY - centerY;
+    
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setZoomLevel(prev => Math.min(Math.max(prev + delta, 0.2), 5));
+    const newZoomLevel = Math.min(Math.max(zoomLevel + delta, 0.2), 5);
+    
+    // 计算缩放后的位置调整
+    const zoomRatio = newZoomLevel / zoomLevel;
+    const newX = position.x - (offsetX * (zoomRatio - 1));
+    const newY = position.y - (offsetY * (zoomRatio - 1));
+    
+    setZoomLevel(newZoomLevel);
+    setPosition({ x: newX, y: newY });
   };
 
-  // 添加拖拽功能
+  // 添加拖拽功能 - 修复版本
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // 只处理左键
+    e.preventDefault();
     setIsDragging(true);
+    
+    // 计算相对于当前缩放级别的起始位置
+    const rect = e.currentTarget.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
     setStartPos({
       x: e.clientX - position.x,
       y: e.clientY - position.y
     });
+    
     e.currentTarget.style.cursor = 'grabbing';
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
+    e.preventDefault();
+    
+    // 计算新位置，考虑缩放级别
+    const deltaX = e.clientX - startPos.x;
+    const deltaY = e.clientY - startPos.y;
+    
+    // 限制移动范围，防止图片移动过远
+    const maxOffset = 500 * zoomLevel;
+    const clampedX = Math.max(-maxOffset, Math.min(maxOffset, deltaX));
+    const clampedY = Math.max(-maxOffset, Math.min(maxOffset, deltaY));
+    
     setPosition({
-      x: e.clientX - startPos.x,
-      y: e.clientY - startPos.y
+      x: clampedX,
+      y: clampedY
     });
   };
 
@@ -426,11 +484,11 @@ function App() {
                 onDoubleClick={handleDoubleClick}
               >
                 <div 
-                  className="absolute inset-0 flex items-center justify-center origin-center"
+                  className="absolute inset-0 flex items-center justify-center"
                   style={{ 
-                    transform: `scale(${zoomLevel}) translate(${position.x}px, ${position.y}px)`,
+                    transform: `translate(${position.x}px, ${position.y}px) scale(${zoomLevel})`,
                     transformOrigin: 'center center',
-                    transition: isDragging ? 'none' : 'transform 0.2s ease',
+                    transition: isDragging ? 'none' : 'transform 0.1s ease-out',
                   }}
                 >
                   <div 
