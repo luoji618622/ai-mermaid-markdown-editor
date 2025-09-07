@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import { MarkdownEditor } from './components/MarkdownEditor';
 import { MarkdownPreview } from './components/MarkdownPreview';
 import { useDebounce } from './hooks/useDebounce';
+import { isAIAvailable } from './services/geminiService';
 
 const initialMarkdown = `# Mermaid.js Live Editor
 
@@ -136,10 +137,18 @@ function App() {
   return (
     <div className="bg-slate-900 text-white min-h-screen font-sans">
       <header className="bg-slate-800/50 border-b border-slate-700 p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-slate-200">Mermaid.js AI-Powered Editor</h1>
-        <a href="https://developers.google.com/gemini/tutorials/node_quickstart" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 transition-colors">
-          Built with Gemini API
-        </a>
+        <h1 className="text-xl font-bold text-slate-200">
+          Mermaid.js {isAIAvailable() ? 'AI-Powered ' : ''}Editor
+        </h1>
+        {isAIAvailable() ? (
+          <a href="https://developers.google.com/gemini/tutorials/node_quickstart" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 transition-colors">
+            Built with Gemini API
+          </a>
+        ) : (
+          <div className="text-slate-400 text-sm">
+            设置API密钥以启用AI功能
+          </div>
+        )}
       </header>
       <main className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4" style={{ height: 'calc(100vh - 73px)'}}>
         <MarkdownEditor value={markdown} onChange={setMarkdown} />

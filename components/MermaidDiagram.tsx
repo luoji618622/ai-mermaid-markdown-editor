@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 // Fix: Import Gemini service and icons for improved UI feedback.
-import { fixMermaidCode } from '../services/geminiService';
+import { fixMermaidCode, isAIAvailable } from '../services/geminiService';
 import { MagicIcon } from './icons/MagicIcon';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 
@@ -45,27 +45,36 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ code, onImageCli
         }
       } catch (e) {
         if (isMounted) {
-          setError('Mermaid syntax error.');
-          setIsFixing(true);
-          try {
-            const correctedCode = await fixMermaidCode(diagramCode);
-            if (isMounted && diagramCode === code) {
-              await window.mermaid.parse(correctedCode);
-              const { svg: fixedSvg } = await window.mermaid.render(diagramId, correctedCode);
+          const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+          
+          // 检查是否有AI功能可用
+          if (isAIAvailable()) {
+            setError('Mermaid语法错误，正在尝试AI修复...');
+            setIsFixing(true);
+            try {
+              const correctedCode = await fixMermaidCode(diagramCode);
+              if (isMounted && diagramCode === code) {
+                await window.mermaid.parse(correctedCode);
+                const { svg: fixedSvg } = await window.mermaid.render(diagramId, correctedCode);
+                if (isMounted) {
+                  setSvg(fixedSvg);
+                  setError('✅ AI成功修复了图表！');
+                  setFixedCode(correctedCode);
+                }
+              }
+            } catch (fixError) {
               if (isMounted) {
-                setSvg(fixedSvg);
-                setError('AI successfully fixed the diagram!');
-                setFixedCode(correctedCode);
+                const fixErrorMsg = fixError instanceof Error ? fixError.message : 'AI修复失败';
+                setError(`❌ ${fixErrorMsg}。请检查Mermaid语法。`);
+              }
+            } finally {
+              if (isMounted) {
+                setIsFixing(false);
               }
             }
-          } catch (fixError) {
-            if (isMounted) {
-              setError('AI fix failed. Please check Mermaid syntax.');
-            }
-          } finally {
-            if (isMounted) {
-              setIsFixing(false);
-            }
+          } else {
+            // 没有AI功能，只显示语法错误
+            setError(`❌ Mermaid语法错误: ${errorMessage}。请检查语法或设置API密钥以启用AI修复功能。`);
           }
         }
       }
