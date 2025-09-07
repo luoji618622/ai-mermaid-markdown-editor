@@ -1,6 +1,6 @@
 # AI-Powered Mermaid Markdown Editor
 
-[**Live Demo**](https://ai-mermaid-markdown-editor-ke6b9pyr2-luojis-projects-c6616764.vercel.app/)
+[**Live Demo**](https://ai-mermaid-markdown-editor.vercel.app/)
 
 This is a powerful Markdown editor with real-time preview, specializing in rendering and repairing Mermaid.js diagrams with the help of AI.
 
@@ -8,7 +8,7 @@ This is a powerful Markdown editor with real-time preview, specializing in rende
 
 # AI 驱动的 Mermaid Markdown 编辑器
 
-[**在线演示**](https://ai-mermaid-markdown-editor-ke6b9pyr2-luojis-projects-c6616764.vercel.app/)
+[**在线演示**](https://ai-mermaid-markdown-editor.vercel.app/)
 
 这是一款功能强大的 Markdown 编辑器，具备实时预览功能，并专注于借助 AI 渲染和修复 Mermaid.js 图表。
 
@@ -48,8 +48,10 @@ This is a powerful Markdown editor with real-time preview, specializing in rende
 
 **Prerequisites:** Node.js
 
-1.  Install dependencies:
-    `npm install`
-2.  Set the `GEMINI_API_KEY` in your environment variables.
-3.  Run the app:
-    `npm run dev`
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
+
+4. deploy on vercel by youself
