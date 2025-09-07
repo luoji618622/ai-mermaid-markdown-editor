@@ -82,7 +82,7 @@ function App() {
     if (!selectedSvg) return;
     
     try {
-      // 创建一个临时的SVG元素来获取尺寸
+      // 创建一个临时的SVG元素来获取尺寸和修复SVG
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = selectedSvg;
       const svgElement = tempDiv.querySelector('svg');
@@ -91,10 +91,31 @@ function App() {
         throw new Error('无法找到SVG元素');
       }
 
-      // 获取SVG的原始尺寸
-      const svgRect = svgElement.getBoundingClientRect();
-      const width = svgElement.width?.baseVal?.value || svgRect.width || 800;
-      const height = svgElement.height?.baseVal?.value || svgRect.height || 600;
+      // 确保SVG有正确的命名空间
+      svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      svgElement.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+
+      // 获取SVG的尺寸，优先使用viewBox
+      let width = 800;
+      let height = 600;
+      
+      const viewBox = svgElement.getAttribute('viewBox');
+      if (viewBox) {
+        const [, , vbWidth, vbHeight] = viewBox.split(' ').map(Number);
+        width = vbWidth || width;
+        height = vbHeight || height;
+      } else {
+        // 尝试从width和height属性获取
+        const svgWidth = svgElement.getAttribute('width');
+        const svgHeight = svgElement.getAttribute('height');
+        
+        if (svgWidth && !svgWidth.includes('%')) {
+          width = parseInt(svgWidth) || width;
+        }
+        if (svgHeight && !svgHeight.includes('%')) {
+          height = parseInt(svgHeight) || height;
+        }
+      }
 
       // 创建canvas
       const canvas = document.createElement('canvas');
@@ -105,7 +126,7 @@ function App() {
       }
 
       // 设置高分辨率
-      const scale = 2; // 2x分辨率提高图片质量
+      const scale = 2;
       canvas.width = width * scale;
       canvas.height = height * scale;
       
@@ -113,48 +134,150 @@ function App() {
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      // 缩放上下文以支持高分辨率
+      // 缩放上下文
       ctx.scale(scale, scale);
 
+      // 创建修复后的SVG字符串
+      const serializer = new XMLSerializer();
+      const svgString = serializer.serializeToString(svgElement);
+      
       // 创建图片对象
       const img = new Image();
       
-      // 创建SVG数据URL
-      const svgBlob = new Blob([selectedSvg], { type: 'image/svg+xml;charset=utf-8' });
-      const svgUrl = URL.createObjectURL(svgBlob);
+      // 使用data URL而不是blob URL来避免跨域问题
+      const svgDataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
 
       img.onload = () => {
-        // 绘制图片到canvas
+        try {
+          // 绘制图片到canvas
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // 转换为PNG并下载
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'mermaid-diagram.png';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            } else {
+              throw new Error('无法创建PNG blob');
+            }
+          }, 'image/png', 1.0);
+          
+        } catch (drawError) {
+          console.error('绘制到Canvas失败:', drawError);
+          throw drawError;
+        }
+      };
+
+      img.onerror = (error) => {
+        console.error('图片加载失败:', error);
+        throw new Error('SVG图片加载失败，可能包含不支持的元素');
+      };
+
+      // 设置跨域属性
+      img.crossOrigin = 'anonymous';
+      img.src = svgDataUrl;
+      
+    } catch (error) {
+      console.error('PNG下载失败:', error);
+      const errorMsg = error instanceof Error ? error.message : '未知错误';
+      
+      // 尝试备用方案：直接使用SVG元素截图
+      try {
+        console.log('尝试备用PNG下载方案...');
+        await downloadPngFallback();
+      } catch (fallbackError) {
+        console.error('备用方案也失败了:', fallbackError);
+        alert(`PNG下载失败: ${errorMsg}\n\n请尝试使用SVG下载功能。`);
+      }
+    }
+  };
+
+  // 备用PNG下载方案
+  const downloadPngFallback = async () => {
+    if (!selectedSvg) return;
+    
+    // 创建一个临时的div来渲染SVG
+    const tempDiv = document.createElement('div');
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.top = '-9999px';
+    tempDiv.style.background = 'white';
+    tempDiv.innerHTML = selectedSvg;
+    
+    document.body.appendChild(tempDiv);
+    
+    try {
+      const svgElement = tempDiv.querySelector('svg');
+      if (!svgElement) throw new Error('找不到SVG元素');
+      
+      // 获取SVG尺寸
+      const rect = svgElement.getBoundingClientRect();
+      const width = rect.width || 800;
+      const height = rect.height || 600;
+      
+      // 创建canvas
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) throw new Error('无法创建Canvas');
+      
+      canvas.width = width * 2;
+      canvas.height = height * 2;
+      ctx.scale(2, 2);
+      
+      // 白色背景
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, width, height);
+      
+      // 使用foreignObject包装SVG
+      const foreignObjectSvg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+          <foreignObject width="100%" height="100%">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="background: white;">
+              ${selectedSvg}
+            </div>
+          </foreignObject>
+        </svg>
+      `;
+      
+      const img = new Image();
+      const svgBlob = new Blob([foreignObjectSvg], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      
+      img.onload = () => {
         ctx.drawImage(img, 0, 0, width, height);
         
-        // 转换为PNG并下载
         canvas.toBlob((blob) => {
           if (blob) {
-            const url = URL.createObjectURL(blob);
+            const downloadUrl = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
+            a.href = downloadUrl;
             a.download = 'mermaid-diagram.png';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            URL.revokeObjectURL(downloadUrl);
           }
-        }, 'image/png', 1.0);
+        }, 'image/png');
         
-        // 清理临时URL
-        URL.revokeObjectURL(svgUrl);
+        URL.revokeObjectURL(url);
       };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(svgUrl);
-        throw new Error('图片加载失败');
-      };
-
-      img.src = svgUrl;
       
-    } catch (error) {
-      console.error('PNG下载失败:', error);
-      alert('PNG下载失败，请重试');
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        throw new Error('备用方案图片加载失败');
+      };
+      
+      img.src = url;
+      
+    } finally {
+      document.body.removeChild(tempDiv);
     }
   };
 
